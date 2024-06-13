@@ -1,5 +1,5 @@
 import socket, multiprocessing, secrets, string
-from render_template import render_template
+from functions import render_template, handle_post_request, redirect
 
 def run():
 
@@ -30,20 +30,48 @@ def handle_client(client_connection, client_address):
   method = headers[0].split()[0]
 
   # If URL does not exist then show 404 error page
-  try:
-    if filename == "/":
-      alphabet = string.ascii_uppercase
-      code = ''.join(secrets.choice(alphabet) for i in range(6))
+  
+  if filename == "/":
+    filename = "index.html"
 
-      response = render_template("index.html", code)
+    response = render_template(filename)
+
+    if method == "POST":
+      # Store form data in a dict for fast retreival times
+      dict = handle_post_request(headers)
+      room_code = dict["room-code"]
+
+      with open("info.txt", "r") as file:
+        line1 = file.readlines(1)[0].split("\n")[0]
+        print(line1)
+        print(room_code)
+        if line1 == room_code:
+          print("access granted")
+          response = redirect("/main")
+        else:
+          print("access denied")
+
+
+  elif filename == "/host":
+    filename = "host.html"
+    alphabet = string.ascii_uppercase
+    code = ''.join(secrets.choice(alphabet) for i in range(6))
+
+    with open("info.txt", "a") as file:
+      file.write(f"{code}\n")
+
+    response = render_template(filename, code)
+
+  elif filename == "/main":
+    filename = "main.html"
+
+    response = render_template(filename, name)
+  
+  else:
+    filename = "404.html"
+    response = render_template(filename)
     
-    elif filename == "/about":
-      response = render_template("about.html")
-
-
-  except FileNotFoundError:
-    response = "HTTP/1.0 404 NOT FOUND\n\nFile Not Found 404"
-
+    
   # Send data from the URL to the client
   client_connection.sendall(response.encode())
   client_connection.close()
